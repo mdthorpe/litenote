@@ -10,6 +10,8 @@ import sys
 import re
 import mechanize
 import time
+import pymongo
+import itertools
 
 from BeautifulSoup import BeautifulSoup
 from sets import Set
@@ -62,6 +64,7 @@ def parse_url_set(url_set):
     domain_set = set()
     parsed_urls = list()
     result_list = list()
+    response_list = list()
 
     # Break url list up into groups by unique domain
     for u in url_set:
@@ -81,9 +84,11 @@ def parse_url_set(url_set):
         pool = Pool(HTTP_THREADS_PER_DOMAIN)
         result_list.append(pool.map(check_url, url_group))
 
-    for results in result_list:
-        for result in results:
-            print result
+    for r in result_list:
+        for x in r:
+            response_list.append(x)
+
+    return response_list
 
 
 ###########################################################################
@@ -97,7 +102,7 @@ def get_css_urls(soup):
             if not re.match(RE_IGNORE_DOMAINS,css['href']): 
                 css_set.add(('css',css['href']))
 
-    print "CSS: %d" % len(css_set)
+    #print "CSS: %d" % len(css_set)
 
     return css_set
 
@@ -113,7 +118,7 @@ def get_script_urls(soup):
             if not re.match(RE_IGNORE_DOMAINS,script['src']):
                 scripts_set.add(('script',script['src']))
 
-    print "Scripts: %d" % len(scripts_set)
+    #print "Scripts: %d" % len(scripts_set)
 
     return scripts_set
 
@@ -128,7 +133,7 @@ def get_image_urls(soup):
         if not re.match(RE_IGNORE_DOMAINS,img['src']):
             images_set.add(('image',img['src']))
 
-    print "Images: %d" % len(images_set)
+    #print "Images: %d" % len(images_set)
 
     return images_set
 
@@ -137,27 +142,81 @@ def get_image_urls(soup):
 def main():
 
     br = mechanize.Browser()
+    base_url = sys.argv[1]
 
+    poll_start_time = time.time()
 
+    error_message = ""
+    page_title = ""
+    base_request_ok = False
+
+    t1 = time.time()
     try:
-        t1 = time.time()
-        response = br.open(sys.argv[1])
+        response = br.open(base_url)
         data = response.get_data()
         assert br.viewing_html()
-        t2 = time.time()
-        print "\n** Title: %s [%0.3fs] [%d bytes]" % (br.title() , round(t2-t1,4), sys.getsizeof(data))
+        base_request_ok = True
 
     except Exception, e:
         print e
-        sys.exit(1)
+        error_message = e
 
-    soup_data = BeautifulSoup(data)
+    t2 = time.time()
+    
+    base_url_request_time = round(t2-t1,4)
 
-    urls = set()
-    urls.update(get_css_urls(soup_data))
-    urls.update(get_script_urls(soup_data))
-    urls.update(get_image_urls(soup_data))
-    parse_url_set(urls)
+    if base_request_ok:
+        base_url_request_bytes = sys.getsizeof(data)
+        page_title = br.title()
+
+        soup_data = BeautifulSoup(data)
+
+        urls = set()
+        css_urls = get_css_urls(soup_data)
+        script_urls = get_script_urls(soup_data)
+        image_urls = get_image_urls(soup_data)
+
+        urls.update(css_urls)
+        urls.update(script_urls)
+        urls.update(image_urls)
+
+        image_resource_count = len(css_urls)
+        script_resource_count = len(script_urls)
+        css_resource_count = len(image_urls)
+
+        resource_requests = parse_url_set(urls)
+    else:
+        base_url_request_bytes = 0
+        resource_requests = []
+        image_resource_count = 0
+        script_resource_count = 0
+        css_resource_count = 0
+
+        
+    poll_end_time = time.time()
+
+    poll_base_url = { 'base_url': base_url,
+                      'poll_start_time': poll_start_time,
+                      'poll_end_time': poll_end_time,
+                      'request_time': base_url_request_time,
+                      'request_bytes': base_url_request_bytes,
+                      'error_message' : error_message,
+                      'image_resources' : image_resource_count,
+                      'script_resources' : script_resource_count,
+                      'css_resources' : css_resource_count,
+                      'page_title' : page_title }
+
+    try:
+        connection = pymongo.Connection('localhost')
+        db = connection.litenote
+        obj_id = db.poller_base_url.insert(poll_base_url)
+        print "Poller Event Id: %s " % obj_id
+        for resource_request in resource_requests:
+            resource_request['base_url_poll_id'] = obj_id
+            db.poller_resource.insert(resource_request)
+
+    except Exception, e:
+        print "Failed:", repr(e)
 
 
 ##########################################################################
@@ -173,4 +232,3 @@ if __name__ == "__main__":
     t1 = time.time()
     main()
     t2 = time.time()
-    print "Total Wall Time: %0.3fs" % (t2-t1)
