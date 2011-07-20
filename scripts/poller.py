@@ -15,103 +15,162 @@ from BeautifulSoup import BeautifulSoup
 from sets import Set
 from urllib2 import HTTPError
 from urllib import quote
+from multiprocessing import Process, Pool
+from urlparse import urlparse, urlunsplit
 
-# -------------------------------------------------- 
-def check_url(browser, url):
+###########################################################################
+def check_url(resource_url):
+
+    url = resource_url[1]
+
+    browser = mechanize.Browser()
     error_message = ""
+
+    t1 = time.time()
     try:
         fullurl = quote(url, safe="%/:=&?~#+!$,;'@()*[]")
         response = browser.open(fullurl)
-        error_code = 200
+        http_code = 200
         if browser.response().info().getheader('Content-length'):
             size_of = browser.response().info().getheader('Content-length')
         else:
             size_of = sys.getsizeof(response.read())
 
     except HTTPError, e:
-        error_code = e.code
+        http_code = e.code
         size_of = 0
-
-    error_message = "%s\n%s\n%s\n" % (browser.request.get_full_url(), browser.response().info(), str(browser.response()) )
-
-    return {'error_code': error_code, 'bytes': int(size_of), 'error_message': error_message}
-
-# -------------------------------------------------- 
-def parse_url_set(url_set):
-    for url in url_set:
-        if not re.match(re_ignore_domains,url):
-            t1 = time.time()
-            result = check_url(br, url)
-            t2 = time.time()
-            print "[%s] [%0.2fs] [%s bytes] %s " % (str(result['error_code']).center(5), 
-                                                    t2-t1, str(result['bytes']).rjust(8), url)
-            if result['error_code'] != 200:
-                print result['error_message']
-        else:
-            next
-            #print "[%s] [%0.2fs] [%s bytes] %s " % (str('---').center(5), 
-            #                                        0, str(0).rjust(8), url)
-
-# -------------------------------------------------- 
-def main():
-    """
-    MAIN FUNCTION
-    """
-
-re_ignore_domains = '.*(.twimg.com|fbcdn.net|.facebook.com|.twitter.com|.cloudfront.net).*'
-
-br = mechanize.Browser()
-data = ""
-
-try:
-    t1 = time.time()
-    response = br.open(sys.argv[1])
-    data = response.get_data()
-    assert br.viewing_html()
+        error_message = "%s\n%s\n%s\n" % (browser.request.get_full_url(), 
+                                      browser.response().info(), 
+                                      str(browser.response()) )
     t2 = time.time()
-    print "\n** Title: %s [%0.3fs] [%d bytes]" % (br.title() , round(t2-t1,4), sys.getsizeof(data))
 
-except Exception, e:
-    print e
-    sys.exit(1)
+    result = {
+            'full_url': resource_url[1],
+            'http_code': http_code, 
+            'bytes': int(size_of), 
+            'request_time': round(t2-t1,3),
+            'resource_type': resource_url[0],
+            'wall_clock' : time.time(),
+            'error_message': error_message}
 
-soup = BeautifulSoup(data)
+    return result
+    
 
-# CSS Files
-css_files = soup.findAll('link', {'rel': 'stylesheet'})
+###########################################################################
+def parse_url_set(url_set):
 
-css_set = set()
-for css in css_files:
-    if css.has_key('href'):
-        css_set.add(css['href'])
+    domain_set = set()
+    parsed_urls = list()
+    result_list = list()
 
-print "\nEmbeded CSS  --- Total: %s" % (len(css_set))
-parse_url_set(css_set)
+    # Break url list up into groups by unique domain
+    for u in url_set:
+        p = urlparse(u[1])
+        domain_set.add(p.netloc)
 
-# JS Files
-scripts = soup.findAll("script")
+    url_groups = list()
+    for domain in domain_set:
+        domain_url_list = list()
+        for url in url_set:
+            if urlparse(url[1]).netloc == domain:
+                domain_url_list.append(url)
+        url_groups.append(domain_url_list)
+    
+    t1 = time.time()
+    for url_group in url_groups:
+        pool = Pool(HTTP_THREADS_PER_DOMAIN)
+        result_list.append(pool.map(check_url, url_group))
 
-scripts_set = set()
-for script in scripts:
-    if script.has_key('src'):
-        scripts_set.add(script['src'])
+    for results in result_list:
+        for result in results:
+            print result
 
-print "\nEmbeded JS  --- Total: %s" % (len(scripts_set))
-parse_url_set(scripts_set)
 
-#### Images
-images = soup.findAll('img', {'src' : re.compile(r'(jpe?g)|(png)|(gif)$')}) 
+###########################################################################
+def get_css_urls(soup):
 
-images_set = set()
-for img in images:
-    images_set.add(img['src'])
+    css_files = soup.findAll('link', {'rel': 'stylesheet'})
 
-print "\nEmbeded Images  --- Total: %s" % (len(images_set))
-parse_url_set(images_set)
+    css_set = set()
+    for css in css_files:
+        if css.has_key('href'):
+            if not re.match(RE_IGNORE_DOMAINS,css['href']): 
+                css_set.add(('css',css['href']))
 
-#-------------------------------
+    print "CSS: %d" % len(css_set)
+
+    return css_set
+
+
+###########################################################################
+def get_script_urls(soup):
+
+    scripts = soup.findAll("script")
+    scripts_set = set()
+
+    for script in scripts:
+        if script.has_key('src'):
+            if not re.match(RE_IGNORE_DOMAINS,script['src']):
+                scripts_set.add(('script',script['src']))
+
+    print "Scripts: %d" % len(scripts_set)
+
+    return scripts_set
+
+
+###########################################################################
+def get_image_urls(soup):
+
+    images = soup.findAll('img', {'src' : re.compile(r'(jpe?g)|(png)|(gif)$')}) 
+    images_set = set()
+
+    for img in images:
+        if not re.match(RE_IGNORE_DOMAINS,img['src']):
+            images_set.add(('image',img['src']))
+
+    print "Images: %d" % len(images_set)
+
+    return images_set
+
+
+###########################################################################
+def main():
+
+    br = mechanize.Browser()
+
+
+    try:
+        t1 = time.time()
+        response = br.open(sys.argv[1])
+        data = response.get_data()
+        assert br.viewing_html()
+        t2 = time.time()
+        print "\n** Title: %s [%0.3fs] [%d bytes]" % (br.title() , round(t2-t1,4), sys.getsizeof(data))
+
+    except Exception, e:
+        print e
+        sys.exit(1)
+
+    soup_data = BeautifulSoup(data)
+
+    urls = set()
+    urls.update(get_css_urls(soup_data))
+    urls.update(get_script_urls(soup_data))
+    urls.update(get_image_urls(soup_data))
+    parse_url_set(urls)
+
+
+##########################################################################
 # MAIN 
-#-------------------------------
+##########################################################################
 
 if __name__ == "__main__":
+    
+    RE_IGNORE_DOMAINS = '.*(.twimg.com|fbcdn.net|.facebook.com|.twitter.com|.cloudfront.net).*'
+    HTTP_THREADS_PER_DOMAIN = 4
+    
+
+    t1 = time.time()
     main()
+    t2 = time.time()
+    print "Total Wall Time: %0.3fs" % (t2-t1)
