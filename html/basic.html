@@ -1,0 +1,93 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Flot Examples</title>
+    <link href="layout.css" rel="stylesheet" type="text/css">
+
+    <!--[if lte IE 8]><script language="javascript" type="text/javascript" src="../excanvas.min.js"></script><![endif]-->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+    <script language="javascript" type="text/javascript" src="js/jquery.flot.js"></script>
+
+ </head>
+    <body>
+    <div id="placeholder" style="width:600px;height:300px;"></div>
+    <div id="placeholder2" style="width:600px;height:300px;"></div>
+
+<script type="text/javascript">
+$(document).ready(function() {
+
+    $.getJSON('/litenote/bin/poller_events_data.py', function(data) {
+
+        min = 1311185721.83577
+        max = 1311192100.210071
+
+        data_points = new Array();
+
+        for ( x in data.events ){
+        data_points.push([
+                    data.events[x].poll_start_time, 
+                    (data.events[x].poll_end_time - data.events[x].poll_start_time) 
+                    ]);
+        }
+
+        $.plot($("#placeholder"),
+            [ { data: data_points, label: "http://www.ea.com/"} ], {
+                    horizontal: true,
+                series: {
+                    color: "rgb(20,120,30)",
+                    threshold: { below: 5, color: "rgb(20, 200, 30)" },
+                    points: { show: true },
+                },
+                grid: { hoverable: true, clickable: true },
+                xaxis: { min: min, max: max, mode: 'time' },
+                yaxis: { min: 1, max: 10 },
+             });
+    });
+
+    $.getJSON('/litenote/bin/resource_graph_data.py', function(data) {
+
+        min = 0;
+        max = 10;
+
+        data_points = new Array();
+        /*
+        for ( x in data.events ){
+         data_points.push([
+                    data.events[x].poll_start_time, 
+                    (data.events[x].poll_end_time - data.events[x].poll_start_time) 
+                    ]);
+        }
+        */
+
+        data_points = [
+                ['1','2'],
+                ['2','3'],
+                ['2','2'],
+                ['3','4'],
+               ];
+
+        data_points2 = [
+                ['2','3'],
+                ['4','4'],
+               ];
+
+        //$.plot($("#placeholder2"), [ { data: data_points, series: { bars: {show: true}} }, { data: data_points2 } ]);
+        $.plot($("#placeholder2"),
+            [{ data: data_points, label: ""}], {
+                    series: {
+                        color: "rgb(20,120,30)",
+                        threshold: { below: 5, color: "rgb(20, 200, 30)" },
+                        points: { show: true },
+                        bars: { show: true, barWidth: .5, horizontal: true,},
+                    },
+                grid: { hoverable: true, clickable: true },
+                yaxis: { min: min, max: max, mode: 'time'},
+                xaxis: { min: 1, max: 10 },
+             });
+    });
+});
+</script>
+
+ </body>
+</html>

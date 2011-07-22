@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Two</title>
+    
+    <link rel="stylesheet" href="css/website.css" type="text/css" media="screen" />
+    <link rel="icon" type="image/png" href="../images/favicon.png">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+
+    <script src="js/RGraph.common.core.js" ></script>
+    <script src="js/RGraph.common.context.js" ></script>
+    <script src="js/RGraph.common.annotate.js" ></script>
+    <script src="js/RGraph.common.tooltips.js" ></script>
+    <script src="js/RGraph.common.zoom.js" ></script>
+    <script src="js/RGraph.common.resizing.js" ></script>
+    <script src="js/RGraph.gantt.js" ></script>
+    <script src="js/RGraph.scatter.js" ></script>
+    
+    <style>
+        .RGraph_tooltip { color: #00a ! important; } 
+        .RGraph_tooltip b { color: black ! important; }
+    </style>
+
+    <script>
+        $(document).ready(function() {
+            $.getJSON('/litenote/bin/poller_events_data.py', function(data) {
+                /*
+                $("#resources").append(
+                    '<canvas id="events_graph" width="700" height="600">[No canvas support]</canvas>'
+                );
+                var events_scatter = new RGraph.Scatter('events_graph', [ [2,2,"green"], ]);
+
+                events_scatter.Set('chart.background.barcolor1','rgba(255,255,255,1)');
+                events_scatter.Set('chart.background.barcolor2', 'rgba(255,255,255,1)');
+                events_scatter.Set('chart.grid.color', 'rgba(238,238,238,1)');
+                events_scatter.Set('chart.gutter.left', 30);
+                events_scatter.Set('chart.labels', []);
+                events_scatter.Set('chart.ymax', 10); // Important!
+                events_scatter.Set('chart.xmax', 100); // Important!
+                events_scatter.Draw();
+                */
+            })
+
+            /*
+            $.getJSON('/litenote/bin/resource_graph_data.py', function(data) {
+                tooltips = data.tooltips;
+                chart_events = data.resources;
+                canvas_height = data.resources.length * 20;
+                title = data.request;
+                console.log(title.base_url);
+
+                $("#resources").append(
+                    '<canvas id="resources_graph" width="700" height=' + canvas_height + '>[No canvas support]</canvas>'
+                )
+
+                var resources_gantt = new RGraph.Gantt('resources_graph');
+                resources_gantt.Set('chart.xmax', 10);
+                resources_gantt.Set('chart.gutter.right', 35);
+                resources_gantt.Set('chart.gutter.left', 335);
+                resources_gantt.Set('chart.labels', [1,2,3,4,5,6,7,8,9]);
+                resources_gantt.Set('chart.title', '');
+                resources_gantt.Set('chart.defaultcolor', '#aaf');
+                resources_gantt.Set('chart.background.grid', false);
+
+                resources_gantt.Set('chart.tooltips', tooltips);
+                resources_gantt.Set('chart.tooltips.effect', 'expand');
+                resources_gantt.Set('chart.zoom.hdir', 'center');
+                resources_gantt.Set('chart.zoom.vdir', 'center');
+                resources_gantt.Set('chart.contextmenu', [['Zoom in', RGraph.Zoom]]);
+
+                resources_gantt.Set('chart.events', chart_events );
+                var color = 'rgba(192,255,255,0.5)';
+                var color2 = 'rgba(192,192,255,0.5)';
+                resources_gantt.Set('chart.vbars', [
+                                           [0, 100, color],
+                                           [90, 100, color2],
+                                          ]);
+                resources_gantt.Set('chart.borders', false);
+                resources_gantt.Set('chart.title.vpos', 0.6);
+                resources_gantt.Draw();
+            });
+            */
+    });
+    </script>
+</head>
+<body>
+    <div id="resources"></div>
+</body>
+</html>
