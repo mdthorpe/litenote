@@ -52,7 +52,7 @@ def check_url(resource_url):
             'bytes': int(size_of), 
             'request_time': round(t2-t1,3),
             'resource_type': resource_url[0],
-            'wall_clock' : time.time(),
+            'wall_clock': time.time(),
             'error_message': error_message}
 
     return result
@@ -79,7 +79,6 @@ def parse_url_set(url_set):
                 domain_url_list.append(url)
         url_groups.append(domain_url_list)
     
-    t1 = time.time()
     for url_group in url_groups:
         pool = Pool(HTTP_THREADS_PER_DOMAIN)
         result_list.append(pool.map(check_url, url_group))
@@ -166,6 +165,7 @@ def main():
     base_url_request_time = round(t2-t1,4)
 
     if base_request_ok:
+        t1 = time.time()
         base_url_request_bytes = sys.getsizeof(data)
         page_title = br.title()
 
@@ -184,6 +184,8 @@ def main():
         script_resource_count = len(script_urls)
         css_resource_count = len(image_urls)
 
+        t2 = time.time()
+        parse_adjustment = t2-t1
         resource_requests = parse_url_set(urls)
     else:
         base_url_request_bytes = 0
@@ -191,6 +193,7 @@ def main():
         image_resource_count = 0
         script_resource_count = 0
         css_resource_count = 0
+        parse_adjustment = 0
 
         
     poll_end_time = time.time()
@@ -204,6 +207,7 @@ def main():
                       'image_resources' : image_resource_count,
                       'script_resources' : script_resource_count,
                       'css_resources' : css_resource_count,
+                      'parse_adjustment' : parse_adjustment,
                       'page_title' : page_title }
 
     try:
