@@ -1,0 +1,89 @@
+<html>
+<head>
+<title>App::kappa test plot</title>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
+    <script type="text/javascript" src="flot/jquery.flot.js"></script>
+    <script type="text/javascript" src="flot/jquery.flot.stack.js"></script>
+    <script type="text/javascript" src="flot/jquery.flot.fillbetween.js"></script>
+    <script type="text/javascript" src="flot/jquery.flot.threshold2.js"></script>
+<script type="text/javascript">
+$(document).ready(function() {
+
+    var redraw_graph = function() {
+        $.getJSON('/litenote/bin/poller_events_data.py', function(data) {
+            var css_id = "#plot1";
+            var series1 = new Array();
+
+            for (i in data.graph_events){
+                series1.push(data.graph_events[i]);
+            };
+
+            //var series1 = new Array();
+            //var series2 = new Array();
+            //var ticks = new Array();
+
+
+            /*
+            var x = 0;
+            for (var i = data.resources.length-1; i >=0; i--){
+                console.log(i);
+                console.log(x);
+                series1.push([data.resources[x][0],i]) 
+                series2.push([data.resources[x][7],i]) 
+                ticks.push([i, data.resources[x][3]]) 
+                x++;
+            };
+            console.log(series2);
+            console.log(ticks);
+            */
+
+            /*
+            var data = [
+                {label: 'request', data: series1, color: "#f9f9f9" },
+            ];
+            */
+
+            graph_data = [
+                {
+                    label: 'request', 
+                    data: series1, 
+                    color: "rgb(200,200,0)",
+                    threshold: { 
+                        below: { limit: 2, color: "rgb(0,200,0)"},
+                        above: { limit: 4, color: "rgb(200,0,0)"},
+                    }
+                }
+            ];
+
+            var options = {
+                series: {stack: 0,
+                         lines: {show: false, steps: false },
+                         points: { show: true, radius: 1 },
+                         bars: {horizontal: false, show: false},},
+                xaxis: { 
+                        mode: "time",
+                        timeformat: "%y/%m/%d %H:%M"
+                },
+                yaxis: {
+                        max: 10,
+                       },
+
+                grid:  { hoverable: true },
+            };
+
+            $.plot($(css_id), graph_data, options);
+        });
+    };
+
+   $(window).resize(function(){redraw_graph()});
+   $("#redraw").click(function(){redraw_graph()});
+
+});
+</script>
+    
+</head>
+<body>
+    <input type='button' id='redraw' value='Redraw'>
+<div id="plot1" style="height:400px;">Here comes the plot</div>
+</body>
+</html>
