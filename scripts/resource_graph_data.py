@@ -15,7 +15,7 @@ from pymongo.objectid import ObjectId
 
 def main():
     form = cgi.FieldStorage()
-    event_id = form.getvalue("event_id", "4e27542f6972651fa0000000")
+    event_id = form.getvalue("event_id", "4e2a000142881e503c000000")
 
     connection = pymongo.Connection('localhost')
     db = connection['litenote']
@@ -23,15 +23,13 @@ def main():
         id = base_url['_id']
 
         resources = list()
-        tooltips = list()
+        #tooltips = list()
         
-        for resource in db.poller_resource.find({"base_url_poll_id": id}):
+        for resource in db.poller_resource.find({"base_url_poll_id": id}).sort("wall_clock"):
 
             parsed_url = urlparse(resource['full_url'])
             wall_clock_start = resource['wall_clock'] - base_url['parse_adjustment'] - base_url['poll_start_time']
             wall_clock_end = wall_clock_start + resource['request_time']
-
-            tooltips.append(''.join(['<a href=\"', resource['full_url'],'\">',resource['full_url'],'</a>']))
 
             resources.append([
                               "%0.3f" % (wall_clock_start),# "request_start": 
@@ -47,7 +45,7 @@ def main():
         base_url['_id'] = str(base_url['_id'])
         print "Content-type: application/x-javascript\r\n"
 
-        print json.dumps({ "request": base_url, "resources": resources, "tooltips": tooltips})
+        print json.dumps({ "request": base_url, "resources": resources})
 
 if __name__ == "__main__":
     main()
