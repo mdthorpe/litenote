@@ -40,8 +40,6 @@ def main():
         events.append({
                         "poll_start_time": event['poll_start_time'],
                         "poll_end_time": event['poll_end_time'],
-                        #"poll_start_time": time.ctime(event['poll_start_time']),
-                        #"poll_end_time": time.ctime(event['poll_end_time']),
                         "css_resources": event['css_resources'],
                         "script_resources": event['script_resources'],
                         "image_resources": event['image_resources'],
@@ -49,7 +47,7 @@ def main():
                         "request_time": event['poll_end_time'],
                      })
         t = "%d" % (event['poll_start_time'] * 1000)
-        graph_events.append([t, event['request_time'] ])
+        graph_events.append([int(t), event['request_time'],str(event['_id']) ])
 
     result = {"url": url,
               "page_title": first_one['page_title'],

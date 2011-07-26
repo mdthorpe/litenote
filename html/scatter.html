@@ -1,89 +1,208 @@
 <html>
 <head>
 <title>App::kappa test plot</title>
-    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
-    <script type="text/javascript" src="flot/jquery.flot.js"></script>
-    <script type="text/javascript" src="flot/jquery.flot.stack.js"></script>
-    <script type="text/javascript" src="flot/jquery.flot.fillbetween.js"></script>
-    <script type="text/javascript" src="flot/jquery.flot.threshold2.js"></script>
+</head>
+<body>
+    <input type='button' id='redraw' value='Redraw'>
+
+    <div id="graphs">
+        <div id="left_graphs" style="float: left; max-width: 500px;">
+            <div id="overview" style="margin-left: 12px; width:490px;height:100px"></div> 
+            <div id="plot1" style="width:500px;height:300px;"></div>
+
+            <p id="hoverdata">Mouse hovers at
+            (<span id="x">0</span>, <span id="y">0</span>). <span id="clickdata"></span></p> 
+            
+            <p>A tooltip is easy to build with a bit of jQuery code and the
+               data returned from the plot.</p> 
+        </div>
+        <div id="right_graphs" style="float: right;width: 820px">
+            <div id="resources" style="width:800px;height:400px;">Here comes the plot</div>
+        </div>
+
+</body>
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
+<script type="text/javascript" src="flot/jquery.flot.js"></script>
+<!-- <script type="text/javascript" src="flot/jquery.flot.threshold2.js"></script> -->
+<script type="text/javascript" src="flot/jquery.flot.threshold.js"></script>
+<script type="text/javascript" src="flot/jquery.flot.selection.js"></script>
+<script type="text/javascript" src="flot/jquery.flot.stack.js"></script>
+<script type="text/javascript" src="flot/jquery.flot.fillbetween.js"></script>
 <script type="text/javascript">
 $(document).ready(function() {
+    var DataObject;
 
-    var redraw_graph = function() {
-        $.getJSON('/litenote/bin/poller_events_data.py', function(data) {
+    var showTooltip = function(x, y, contents) {
+        $('<div id="tooltip">' + contents + '</div>').css({
+                                                            position: 'absolute',
+                                                            display: 'none',
+                                                            top: y + 5,
+                                                            left: x + 5,
+                                                            border: '1px solid #fdd',
+                                                            padding: '2px',
+                                                            'background-color': '#fee',
+                                                            opacity: 0.80
+                                                        }).appendTo("body").fadeIn(200);
+        };
+
+    var getDataRange = function(start_time, end_time, data) {
+        var series = new Array();
+        for (i in data.graph_events){
+            if(( parseInt(data.graph_events[i][0]) > start_time)
+                    && ( parseInt(data.graph_events[i][0]) < end_time ))
+                series.push([data.graph_events[i][0],data.graph_events[i][1],data.graph_events[i][2]]);
+            };
+        var graph_data = [
+            {
+                label: 'Request Time', 
+                data: series, 
+                color: "rgb(00,200,0)",
+                threshold: { 
+                    below: { limit: 2, color: "rgb(0,200,0)"},
+                    above: { limit: 4, color: "rgb(200,0,0)"},
+                }
+            }
+        ];
+        return graph_data;
+    };
+
+    var redraw_graph = function(data) {
             var css_id = "#plot1";
             var series1 = new Array();
 
-            for (i in data.graph_events){
-                series1.push(data.graph_events[i]);
-            };
-
-            //var series1 = new Array();
-            //var series2 = new Array();
-            //var ticks = new Array();
-
-
-            /*
-            var x = 0;
-            for (var i = data.resources.length-1; i >=0; i--){
-                console.log(i);
-                console.log(x);
-                series1.push([data.resources[x][0],i]) 
-                series2.push([data.resources[x][7],i]) 
-                ticks.push([i, data.resources[x][3]]) 
-                x++;
-            };
-            console.log(series2);
-            console.log(ticks);
-            */
-
-            /*
-            var data = [
-                {label: 'request', data: series1, color: "#f9f9f9" },
-            ];
-            */
-
-            graph_data = [
-                {
-                    label: 'request', 
-                    data: series1, 
-                    color: "rgb(200,200,0)",
-                    threshold: { 
-                        below: { limit: 2, color: "rgb(0,200,0)"},
-                        above: { limit: 4, color: "rgb(200,0,0)"},
-                    }
-                }
-            ];
+            graph_data = getDataRange(1,1000000000000000,data);
 
             var options = {
                 series: {stack: 0,
                          lines: {show: false, steps: false },
-                         points: { show: true, radius: 1 },
+                         points: { show: true, radius: 1.5 },
                          bars: {horizontal: false, show: false},},
-                xaxis: { 
-                        mode: "time",
-                        timeformat: "%y/%m/%d %H:%M"
+                xaxis: { mode: "time",
+                         timeformat: "%y/%m/%d %H:%M",
                 },
-                yaxis: {
-                        max: 10,
-                       },
-
-                grid:  { hoverable: true },
+                yaxis: { max: 10, },
+                selection: { mode: "x" },
+                grid: { hoverable: true, clickable: true },
             };
 
-            $.plot($(css_id), graph_data, options);
+            var plot = $.plot($(css_id), graph_data, options);
+
+            // setup overview
+            var overview = $.plot($("#overview"), graph_data , {
+                legend: { show: false, container: $("#overviewLegend") },
+                series: {
+                    lines: { show: true, lineWidth: 1 },
+                    shadowSize: 0
+                },
+                xaxis: { ticks: 4, mode: 'time' },
+                yaxis: { ticks: 0, min: 0, max: 10, font: { size: 6 }, },
+                grid: { color: "#999" },
+                selection: { mode: "x" }
+            });
+
+            $(css_id).bind("plotselected", function (event, ranges) {
+                // clamp the zooming to prevent eternal zoom
+                if (ranges.xaxis.to - ranges.xaxis.from < 0.00001)
+                    ranges.xaxis.to = ranges.xaxis.from + 0.00001;
+                if (ranges.yaxis.to - ranges.yaxis.from < 0.00001)
+                    ranges.yaxis.to = ranges.yaxis.from + 0.00001;
+                                                                    
+                // do the zooming
+                plot = $.plot($(css_id), getDataRange(ranges.xaxis.from, ranges.xaxis.to, data),
+                                                 $.extend(true, {}, options, {
+                                                 xaxis: { min: ranges.xaxis.from, max: ranges.xaxis.to },
+                                                 yaxis: { min: ranges.yaxis.from, max: ranges.yaxis.to }
+                                                 }));
+                                    
+                // don't fire event on the overview to prevent eternal loop
+                overview.setSelection(ranges, true);
+            });
+
+            $(css_id).bind("plothover", function(event, pos, item) {
+                $("#x").text(pos.x.toFixed(2));
+                $("#y").text(pos.y.toFixed(2));
+                                    
+                if (item) {
+                    if (previousPoint != item.dataIndex) {
+                        previousPoint = item.dataIndex;
+                        
+                        $("#tooltip").remove();
+                        var x = item.datapoint[0].toFixed(2),
+                        y = item.datapoint[1].toFixed(2);
+                        
+                        showTooltip(item.pageX, item.pageY,
+                        "Request time: " + y + "s");
+                    }
+                }
+                else {
+                    $("#tooltip").remove();
+                    previousPoint = null;            
+                }
+            });
+
+            $(css_id).bind("plotclick", function (event, pos, item) {
+                if (item) {
+                    console.log(item);
+                    $("#clickdata").text("You clicked point " + item.dataIndex + " in " + item.series.data[item.dataIndex][2]+ ".");
+                    //plot.highlight(item.series, item.datapoint);
+                    draw_resource_graph(item.series.data[item.dataIndex][2], DataObject.url, DataObject.events[item.dataIndex]);
+                }
+            });
+
+            $("#overview").bind("plotselected", function (event, ranges) {
+                plot.setSelection(ranges);
+            });
+    };
+
+    var draw_resource_graph = function(event_id,base_url,base_request) {
+        console.log(base_url);
+        console.log(base_request);
+        $.getJSON('/litenote/bin/resource_graph_data.py?event_id=' + event_id , function(data) {
+            var css_id = "#resources";
+            var series1 = new Array();
+            var series2 = new Array();
+            var ticks = new Array();
+
+            var x = 0;
+
+            for (var i = data.resources.length-1; i >=0; i--){
+                series1.push([data.resources[x][0],i]) 
+                series2.push([data.resources[x][7],i]) 
+                console.log(data.resources[x][7])
+                ticks.push([i, data.resources[x][3]]) 
+                x++;
+            };
+            series1.push([base_request.poll_start_time - base_request.request_time,series1.length]);
+            series2.push([4,series2.length]);
+            ticks.push([ticks.length,base_url]);
+
+            console.log(series2)
+            var data = [
+                {label: 'wait', data: series1, color: "#ddf" },
+                {label: 'transfer', data: series2 },
+            ];
+            max_x = parseInt(series1[series1.length-1]) + 1.5;
+            var options = {
+                series: {stack: 0,
+                         lines: {show: false, steps: false },
+                         bars: {horizontal: true, show: true, barWidth: 0.6, align: 'center', 
+                                fillColor: { colors: [ { opacity: 0.3 }, { opacity: 0.1 } ] }, lineWidth: 1},},
+                        yaxis: {ticks: ticks, font: {size: 6}, position: "right"},
+                        xaxis: {max: max_x},
+
+            };
+
+            $.plot($(css_id), data, options);
         });
     };
 
-   $(window).resize(function(){redraw_graph()});
-   $("#redraw").click(function(){redraw_graph()});
-
+    $.getJSON('/litenote/bin/poller_events_data.py', function(data) {
+        DataObject = data;
+        console.log(DataObject);
+        redraw_graph(DataObject);
+    });
 });
 </script>
     
-</head>
-<body>
-    <input type='button' id='redraw' value='Redraw'>
-<div id="plot1" style="height:400px;">Here comes the plot</div>
 </body>
 </html>
